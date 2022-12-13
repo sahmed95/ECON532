@@ -1,0 +1,92 @@
+%%
+%--------------------------------------------------------------------------
+% Problem 4.2 (b) : 
+%--------------------------------------------------------------------------
+clear; 
+load 100markets3products.mat;
+% Number of products and number of markets
+n_markets = 100;
+n_products = 3; 
+
+% Number of consumers 
+ns = 500;
+
+%% True markup 
+% True parameters
+gamma_0 = 2; 
+gamma_1 = 1; 
+gamma_2 = 1;
+beta = [5;1;1];
+alpha = 1; 
+sigma_alph = 1; 
+
+% Reshaping 
+W = reshape(w, n_products, n_markets);
+Eta = reshape(eta, n_products, n_markets);
+z = reshape(Z, n_products, n_markets);
+
+% Marginal cost
+MC_jm = zeros(n_products, n_markets); 
+for j = 1:n_products
+    for m=1:n_markets
+        MC_jm(j,m) = gamma_0+gamma_1*W(j,1)+gamma_2*z(j,m)+Eta(j,m); 
+    end
+end
+
+% Markup
+markups = zeros(n_products, n_markets);
+for j = 1:n_products
+    for m = 1:n_markets
+        markup = P_opt(j,m)-MC_jm(j,m);
+        markups(j,m) =markup; 
+    end
+end
+
+mu_true_avg = mean(markups, 'all');
+mu_true_med = median(markups, 'all'); 
+
+figure(1) 
+mu = histogram(markups); 
+title('Distribution of markups')
+xlabel('Markup')
+ylabel('Frequency')
+saveas('mu', 'mu_true.png')
+
+%% Merged markup
+load theta_best.mat 
+load nu_best.mat
+theta_final = theta_final_olig; 
+theta = theta_final(1:4); 
+sigma = theta_final(5); 
+delta = meanutility(ns, n_markets, n_products, sigma,P_opt, nu, shares);
+markup_matrix = [1,1,0; 1,1,0;0,0,1]; 
+sim_shares = marketshare(ns, n_markets, n_products, sigma, P_opt, delta, nu);
+derivative = calculate_derivative(theta, ns, n_markets, n_products, P_opt, nu, sigma, delta);
+
+%%
+Delta_jr = zeros(n_products*n_markets, n_products*n_markets);
+for i=1:n_markets 
+    block = derivative((i-1)*n_products+1:i*n_products,:); 
+    Delta_jr((i-1)*n_products+1:i*n_products, (i-1)*n_products+1:i*n_products) = block;
+end 
+markup_mat = [];
+for i=1:n_markets
+    markup_mat = [markup_mat; markup_matrix]
+end
+final_mat = [];
+for j=1:n_markets
+    final_mat = [final_mat, markup_mat];
+end
+new_Delta_jr = Delta_jr.*final_mat;
+markup_merge = -1*new_Delta_jr\(reshape(shares_sim,[],1));
+markup_merge = reshape(markup_merge, n_products, n_markets);
+
+mu_merge_avg = mean(markup_merge, 'all');
+mu_true_med = median(markup_merge, 'all'); 
+
+figure(2) 
+mu_merge = histogram(markups); 
+title('Distribution of markups')
+xlabel('Markup')
+ylabel('Frequency')
+saveas('mu', 'mu_true.png')
